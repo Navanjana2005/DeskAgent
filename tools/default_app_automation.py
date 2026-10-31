@@ -1,25 +1,3 @@
-"""
-Generic Windows UI-automation primitives for the agent.
-
-Instead of writing one @tool per specific action (turn_on_wifi,
-send_whatsapp_message, calculator_control, ...), give the agent a handful
-of general primitives. The agent's own reasoning (in your LangGraph ReAct
-loop) decides which control to inspect, click, or type into, based on what
-inspect_screen() reports back -- the same way a human would look at the
-screen, then act.
-
-Typical agent loop for ANY task, e.g. "turn on Bluetooth":
-  1. open_app("ms-settings:bluetooth")
-  2. inspect_screen()                -> agent reads the returned tree,
-                                         finds a control named "Bluetooth"
-                                         with ControlType Button/Toggle
-  3. toggle_set("Bluetooth", True)   -> or click("Bluetooth") if it's a
-                                         plain button, not a toggle
-  4. inspect_screen()                -> agent verifies the new state
-
-No new Python needed for "turn on Airplane mode" -- same four tools, agent
-just targets a different Name.
-"""
 
 import functools
 import os

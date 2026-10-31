@@ -23,6 +23,7 @@ _SUBMODULES = [
     "tools.calculator_auto",
     "tools.default_app_automation",
     "tools.messaging_app_automation",
+    "tools.webbrowser_app_automation",
 ]
 
 _TOOLS = {}

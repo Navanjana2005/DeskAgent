@@ -116,6 +116,11 @@ request. `DESKAGENT_HISTORY_TOKEN_BUDGET` (default `4000`) and
 uses LangChain's approximate message counter, not the model tokenizer, and
 does not cap the current user request or the current turn's tool outputs.
 
+The `open_web_browser` and `search_web_browser` tools launch URLs or Google
+search results in the system's default browser. They do not read page contents,
+click links, or submit forms. Other previously registered browser and research
+tools remain available independently.
+
 The application loads `.env` at startup. Do not commit `.env` or API keys.
 
 ## Usage

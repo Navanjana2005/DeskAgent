@@ -1,10 +1,4 @@
-"""
-tools/security_tools.py
-Security & utility tools: password generation, strength check, file hashing,
-AES-256 encryption/decryption. No API keys required.
 
-Packages: cryptography (pip install cryptography)
-"""
 
 import os
 import re

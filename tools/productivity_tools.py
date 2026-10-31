@@ -1,11 +1,4 @@
-"""
-tools/productivity_tools.py
-Productivity tools: notes, todos, datetime, unit converter, timezone,
-pomodoro timer, and daily summary.
 
-All tools use local JSON storage — no API keys required.
-Storage files: storage/notes.json, storage/todos.json, storage/preferences.json
-"""
 
 import os
 import json
