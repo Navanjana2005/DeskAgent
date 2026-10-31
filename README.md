@@ -190,10 +190,3 @@ screen, and `PHASES` controls the pipeline labels.
 - The activity monitor redacts known credential patterns and secret-like
   argument names, but redaction is best-effort. Do not rely on it as your only
   protection when sharing screenshots or logs.
-
-## Key files
-
-- `agent.py` — agent orchestration and application entry point
-- `tui.py` — callback-driven terminal presentation (dashboard, commands, plain-text fallback)
-- `tools/` — modular tool definitions
-- `.env` — local, ignored credentials configuration (create manually)
