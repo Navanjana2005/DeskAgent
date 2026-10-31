@@ -8,20 +8,22 @@ Required packages: pip install pdfplumber PyPDF2 python-docx openpyxl
 import os
 from langchain_core.tools import tool
 
-import os
 import re
 from datetime import datetime
-from langchain_core.tools import tool
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, HRFlowable, ListFlowable, ListItem
-)
-from reportlab.pdfgen import canvas as pdf_canvas
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, HRFlowable, ListFlowable, ListItem
+    )
+    from reportlab.pdfgen import canvas as pdf_canvas
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 try:
     import pdfplumber
@@ -256,38 +258,39 @@ def create_docx(file_path: str, title: str, content: str) -> str:
 
 
 # ── Theme ────────────────────────────────────────────────────────────
-ACCENT = colors.HexColor("#2E5EAA")
-TEXT_DARK = colors.HexColor("#1A1A1A")
-TEXT_GRAY = colors.HexColor("#5A5A5A")
+if HAS_REPORTLAB:
+    ACCENT = colors.HexColor("#2E5EAA")
+    TEXT_DARK = colors.HexColor("#1A1A1A")
+    TEXT_GRAY = colors.HexColor("#5A5A5A")
 
-styles = getSampleStyleSheet()
-styles.add(ParagraphStyle(
-    name="DocTitle", fontName="Helvetica-Bold", fontSize=26,
-    textColor=ACCENT, alignment=TA_CENTER, spaceAfter=6,
-))
-styles.add(ParagraphStyle(
-    name="DocSubtitle", fontName="Helvetica", fontSize=11,
-    textColor=TEXT_GRAY, alignment=TA_CENTER, spaceAfter=24,
-))
-styles.add(ParagraphStyle(
-    name="H1", fontName="Helvetica-Bold", fontSize=17,
-    textColor=ACCENT, spaceBefore=18, spaceAfter=8,
-))
-styles.add(ParagraphStyle(
-    name="H2", fontName="Helvetica-Bold", fontSize=13,
-    textColor=TEXT_DARK, spaceBefore=12, spaceAfter=6,
-))
-styles.add(ParagraphStyle(
-    name="Body", fontName="Helvetica", fontSize=10.5,
-    textColor=TEXT_DARK, leading=16, spaceAfter=8, alignment=TA_LEFT,
-))
-styles.add(ParagraphStyle(
-    name="Bullet", fontName="Helvetica", fontSize=10.5,
-    textColor=TEXT_DARK, leading=15,
-))
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name="DocTitle", fontName="Helvetica-Bold", fontSize=26,
+        textColor=ACCENT, alignment=TA_CENTER, spaceAfter=6,
+    ))
+    styles.add(ParagraphStyle(
+        name="DocSubtitle", fontName="Helvetica", fontSize=11,
+        textColor=TEXT_GRAY, alignment=TA_CENTER, spaceAfter=24,
+    ))
+    styles.add(ParagraphStyle(
+        name="H1", fontName="Helvetica-Bold", fontSize=17,
+        textColor=ACCENT, spaceBefore=18, spaceAfter=8,
+    ))
+    styles.add(ParagraphStyle(
+        name="H2", fontName="Helvetica-Bold", fontSize=13,
+        textColor=TEXT_DARK, spaceBefore=12, spaceAfter=6,
+    ))
+    styles.add(ParagraphStyle(
+        name="Body", fontName="Helvetica", fontSize=10.5,
+        textColor=TEXT_DARK, leading=16, spaceAfter=8, alignment=TA_LEFT,
+    ))
+    styles.add(ParagraphStyle(
+        name="DocBullet", fontName="Helvetica", fontSize=10.5,
+        textColor=TEXT_DARK, leading=15,
+    ))
 
 
-def _add_page_number(canv: pdf_canvas.Canvas, doc):
+def _add_page_number(canv, doc):
     canv.saveState()
     canv.setFont("Helvetica", 8)
     canv.setFillColor(TEXT_GRAY)
@@ -302,7 +305,7 @@ def _parse_markdown_lite(text: str, story: list):
 
     def flush_bullets():
         if bullet_buffer:
-            items = [ListItem(Paragraph(b, styles["Bullet"]), leftIndent=12) for b in bullet_buffer]
+            items = [ListItem(Paragraph(b, styles["DocBullet"]), leftIndent=12) for b in bullet_buffer]
             story.append(ListFlowable(items, bulletType="bullet", start="•", leftIndent=18))
             story.append(Spacer(1, 8))
             bullet_buffer.clear()
@@ -349,6 +352,8 @@ def create_styled_pdf(file_path: str, title: str, content: str, subtitle: str = 
         content: Body content using the markdown syntax described above.
         subtitle: Optional subtitle/description shown under the title.
     """
+    if not HAS_REPORTLAB:
+        return "❌ reportlab not installed. Run: pip install reportlab"
     try:
         doc = SimpleDocTemplate(
             file_path, pagesize=A4,

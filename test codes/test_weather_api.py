@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
-API_KEY = "b5806da5bae7e67896d80cef07390733"
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 def get_weather(city: str) -> dict | None:
@@ -12,9 +11,14 @@ def get_weather(city: str) -> dict | None:
     Fetch current weather data for the given city.
     Returns a dictionary of weather details or None on failure.
     """
+    api_key = os.getenv("OPENWEATHER_API_KEY")
+    if not api_key:
+        print("❌ OPENWEATHER_API_KEY is not set in the environment or .env file.")
+        return None
+
     params = {
         "q": city,
-        "appid": API_KEY,
+        "appid": api_key,
         "units": "metric"   # Use 'imperial' for Fahrenheit
     }
 
@@ -26,7 +30,7 @@ def get_weather(city: str) -> dict | None:
     except requests.exceptions.HTTPError as http_err:
         if response.status_code == 404:
             print(f"❌ City '{city}' not found. Please check the spelling.")
-            return f"❌ City '{city}' not found. Please check the spelling."
+            return None
         elif response.status_code == 401:
             print("❌ Invalid API key. Please check your .env file.")
         else:

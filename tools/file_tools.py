@@ -17,6 +17,7 @@ import tarfile
 import datetime
 import time
 from langchain_core.tools import tool
+from tools.safety import dangerous_tools_enabled
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,11 +54,16 @@ def open_directory(directory_path: str) -> str:
 
 @tool
 def delete_file(file_path: str) -> str:
-    """Deletes the specified file.
+    """Deletes a file when ALLOW_DANGEROUS_TOOLS=1 is enabled.
 
     Args:
         file_path: The path to the file to delete.
     """
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ File deletion is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         os.remove(file_path)
         return f"Deleted {file_path}."

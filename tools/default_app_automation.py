@@ -22,7 +22,7 @@ just targets a different Name.
 """
 
 import functools
-import subprocess
+import os
 import time
 from langchain_core.tools import BaseTool, tool
 
@@ -104,11 +104,14 @@ def default_open_app(app_or_uri: str) -> str:
         app_or_uri: App name to launch via AppOpener, or a 'ms-settings:...'
             / other shell URI to open directly.
     """
-    if not HAS_APPOPENER and not app_or_uri.startswith(("ms-settings:", "http")):
+    is_uri = app_or_uri.startswith(("ms-settings:", "http://", "https://"))
+    if not is_uri and not HAS_APPOPENER:
         return "❌ AppOpener not installed. Run: pip install AppOpener"
     try:
-        if app_or_uri.startswith(("ms-settings:", "http", "ms-")):
-            subprocess.Popen(f'start {app_or_uri}', shell=True)
+        if is_uri:
+            if os.name != "nt":
+                return "❌ Windows app and settings URIs are only supported on Windows."
+            os.startfile(app_or_uri)
         else:
             app_open(app_or_uri, match_closest=True, throw_error=True)
         time.sleep(2)

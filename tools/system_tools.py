@@ -12,9 +12,12 @@ import ctypes
 import platform
 import socket
 import subprocess
+import html
+import tempfile
 import psutil
 import datetime
 from langchain_core.tools import tool
+from tools.safety import dangerous_tools_enabled
 
 try:
     from AppOpener import open as launch_app, close as terminate_app
@@ -102,6 +105,11 @@ def kill_process(pid: int) -> str:
     Args:
         pid: The process ID to terminate.
     """
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Process termination is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         p = psutil.Process(pid)
         name = p.name()
@@ -148,6 +156,11 @@ def lock_the_computer() -> str:
 @tool
 def shutdown_computer() -> str:
     """Shuts down the computer immediately."""
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Shutdown is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         if os.name == "nt":
             subprocess.run(["shutdown", "/s", "/t", "0"], check=True)
@@ -161,6 +174,11 @@ def shutdown_computer() -> str:
 @tool
 def restart_computer() -> str:
     """Restarts the computer immediately."""
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Restart is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         if os.name == "nt":
             subprocess.run(["shutdown", "/r", "/t", "0"], check=True)
@@ -174,6 +192,11 @@ def restart_computer() -> str:
 @tool
 def sleep_computer() -> str:
     """Puts the computer to sleep."""
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Sleep is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         if os.name == "nt":
             subprocess.run(["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"], check=True)
@@ -187,6 +210,11 @@ def sleep_computer() -> str:
 @tool
 def hibernate_computer() -> str:
     """Hibernates the computer."""
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Hibernation is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         if os.name == "nt":
             subprocess.run(["shutdown", "/h"], check=True)
@@ -346,17 +374,23 @@ def connect_wifi(ssid: str, password: str = "") -> str:
         if os.name != "nt":
             return "❌ This tool only works on Windows."
 
-        # Build a temporary wireless profile XML
+        if not dangerous_tools_enabled():
+            return (
+                "⛔ Changing Wi-Fi networks is disabled. Set "
+                "ALLOW_DANGEROUS_TOOLS=1 in your environment to enable it."
+            )
+
         auth = "WPA2PSK" if password else "open"
         encrypt = "AES" if password else "none"
         key_block = (
-            f"<keyMaterial>{password}</keyMaterial>"
+            f"<keyMaterial>{html.escape(password)}</keyMaterial>"
             if password else ""
         )
+        escaped_ssid = html.escape(ssid)
         profile_xml = f"""<?xml version="1.0"?>
 <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
-    <name>{ssid}</name>
-    <SSIDConfig><SSID><name>{ssid}</name></SSID></SSIDConfig>
+    <name>{escaped_ssid}</name>
+    <SSIDConfig><SSID><name>{escaped_ssid}</name></SSID></SSIDConfig>
     <connectionType>ESS</connectionType>
     <connectionMode>auto</connectionMode>
     <MSM>
@@ -371,23 +405,30 @@ def connect_wifi(ssid: str, password: str = "") -> str:
     </MSM>
 </WLANProfile>"""
 
-        profile_path = os.path.join(os.environ.get("TEMP", "."), "temp_wifi_profile.xml")
-        with open(profile_path, "w", encoding="utf-8") as f:
-            f.write(profile_xml)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            profile_path = os.path.join(temp_dir, "wifi_profile.xml")
+            with open(profile_path, "w", encoding="utf-8") as profile_file:
+                profile_file.write(profile_xml)
 
-        # Add the profile
-        subprocess.run(["netsh", "wlan", "add", "profile", f"filename={profile_path}"],
-                       capture_output=True, check=True)
-        # Connect
-        result = subprocess.run(
-            ["netsh", "wlan", "connect", f"name={ssid}"],
-            capture_output=True, text=True
-        )
-        os.remove(profile_path)
+            add_result = subprocess.run(
+                ["netsh", "wlan", "add", "profile", f"filename={profile_path}"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if add_result.returncode != 0:
+                return f"❌ Failed to add Wi-Fi profile: {add_result.stderr.strip()}"
+
+            result = subprocess.run(
+                ["netsh", "wlan", "connect", f"name={ssid}"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
 
         if result.returncode == 0:
             return f"✅ Connected to Wi-Fi: {ssid}"
-        return f"❌ Failed to connect: {result.stderr.strip()}"
+        return f"❌ Failed to connect: {(result.stderr or result.stdout).strip()}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -448,6 +489,11 @@ def toggle_dark_mode() -> str:
 @tool
 def empty_recycle_bin() -> str:
     """Empties the Windows Recycle Bin."""
+    if not dangerous_tools_enabled():
+        return (
+            "⛔ Emptying the Recycle Bin is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+            "in your environment to enable it."
+        )
     try:
         if os.name != "nt":
             return "❌ This tool only works on Windows."

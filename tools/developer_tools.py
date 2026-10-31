@@ -10,10 +10,7 @@ import io
 import subprocess
 import traceback
 from langchain_core.tools import tool
-
-# Safety gate: dangerous operations are disabled by default for published
-# repositories. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable.
-ALLOW_DANGEROUS = os.getenv("ALLOW_DANGEROUS_TOOLS", "0") == "1"
+from tools.safety import dangerous_tools_enabled
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +75,7 @@ def git_commit(repo_path: str, message: str, add_all: bool = True) -> str:
         message: Commit message.
         add_all: If True, stages all changes with 'git add -A' first (default True).
     """
-    if not ALLOW_DANGEROUS:
+    if not dangerous_tools_enabled():
         return (
             "⛔ Disabled for safety. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable."
         )
@@ -140,7 +137,7 @@ def install_pip_package(package_name: str) -> str:
     Args:
         package_name: Package name to install (e.g., 'requests', 'pandas==2.0.0').
     """
-    if not ALLOW_DANGEROUS:
+    if not dangerous_tools_enabled():
         return (
             "⛔ Disabled for safety. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable."
         )
@@ -192,7 +189,7 @@ def uninstall_pip_package(package_name: str) -> str:
     Args:
         package_name: Package name to uninstall (e.g., 'requests').
     """
-    if not ALLOW_DANGEROUS:
+    if not dangerous_tools_enabled():
         return (
             "⛔ Disabled for safety. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable."
         )
@@ -223,7 +220,7 @@ def run_python_code(code: str) -> str:
     Example:
         code = "for i in range(3): print(i * 2)"
     """
-    if not ALLOW_DANGEROUS:
+    if not dangerous_tools_enabled():
         return (
             "⛔ Disabled for safety. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable."
         )
@@ -293,7 +290,7 @@ def run_commands_in_terminal(command: str) -> str:
     Args:
         command: The shell command to execute (e.g., 'dir', 'echo hello', 'python --version').
     """
-    if not ALLOW_DANGEROUS:
+    if not dangerous_tools_enabled():
         return (
             "⛔ Disabled for safety. Set ALLOW_DANGEROUS_TOOLS=1 in your environment to enable."
         )

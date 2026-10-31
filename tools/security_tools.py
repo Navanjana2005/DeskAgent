@@ -11,6 +11,9 @@ import re
 import secrets
 import string
 import hashlib
+import ast
+import math
+import operator
 from langchain_core.tools import tool
 
 try:
@@ -378,29 +381,104 @@ def calculate(expression: str) -> str:
     Supported: +, -, *, /, //, %, **, sqrt(), abs(), round(), sin(), cos(), tan(),
                log(), log10(), floor(), ceil(), pi, e
     """
-    import math
     try:
-        # Safe namespace — only math functions
-        safe_ns = {
-            "__builtins__": {},
-            "sqrt": math.sqrt, "abs": abs, "round": round,
-            "sin": math.sin, "cos": math.cos, "tan": math.tan,
-            "asin": math.asin, "acos": math.acos, "atan": math.atan,
-            "log": math.log, "log10": math.log10, "log2": math.log2,
-            "floor": math.floor, "ceil": math.ceil,
-            "pow": math.pow, "exp": math.exp,
-            "pi": math.pi, "e": math.e, "inf": math.inf,
-            "factorial": math.factorial, "gcd": math.gcd,
-        }
-        # Basic safety check — reject anything that looks dangerous
-        forbidden = ["import", "exec", "eval", "open", "os", "sys", "__"]
-        for f in forbidden:
-            if f in expression:
-                return f"❌ Expression rejected: contains '{f}'"
-
-        result = eval(expression, safe_ns)  # noqa: S307
+        result = _evaluate_math_expression(expression)
         return f"🧮 {expression} = {result}"
     except ZeroDivisionError:
         return "❌ Division by zero."
     except Exception as e:
         return f"❌ Error evaluating expression: {e}"
+
+
+_BINARY_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_UNARY_OPERATORS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _bounded_factorial(value):
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 1000:
+        raise ValueError("factorial accepts integers from 0 to 1000.")
+    return math.factorial(value)
+
+
+def _bounded_power(base, exponent):
+    if not isinstance(exponent, (int, float)) or abs(exponent) > 1000:
+        raise ValueError("Exponent magnitude must not exceed 1000.")
+    return operator.pow(base, exponent)
+
+
+_MATH_FUNCTIONS = {
+    "sqrt": math.sqrt,
+    "abs": abs,
+    "round": round,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "asin": math.asin,
+    "acos": math.acos,
+    "atan": math.atan,
+    "log": math.log,
+    "log10": math.log10,
+    "log2": math.log2,
+    "floor": math.floor,
+    "ceil": math.ceil,
+    "pow": _bounded_power,
+    "exp": math.exp,
+    "factorial": _bounded_factorial,
+    "gcd": math.gcd,
+}
+_MATH_CONSTANTS = {"pi": math.pi, "e": math.e, "inf": math.inf}
+
+
+def _evaluate_math_expression(expression: str):
+    if len(expression) > 512:
+        raise ValueError("Expression is too long.")
+
+    tree = ast.parse(expression, mode="eval")
+    nodes = list(ast.walk(tree))
+    if len(nodes) > 100:
+        raise ValueError("Expression contains too many operations.")
+
+    def evaluate(node, depth=0):
+        if depth > 20:
+            raise ValueError("Expression is nested too deeply.")
+
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            return node.value
+        if isinstance(node, ast.Name) and node.id in _MATH_CONSTANTS:
+            return _MATH_CONSTANTS[node.id]
+        if isinstance(node, ast.BinOp) and type(node.op) in _BINARY_OPERATORS:
+            left = evaluate(node.left, depth + 1)
+            right = evaluate(node.right, depth + 1)
+            if isinstance(node.op, ast.Pow) and abs(right) > 1000:
+                raise ValueError("Exponent magnitude must not exceed 1000.")
+            result = _BINARY_OPERATORS[type(node.op)](left, right)
+            if isinstance(result, int) and result.bit_length() > 4096:
+                raise ValueError("Integer result is too large.")
+            return result
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPERATORS:
+            return _UNARY_OPERATORS[type(node.op)](evaluate(node.operand, depth + 1))
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _MATH_FUNCTIONS
+            and not node.keywords
+        ):
+            arguments = [evaluate(argument, depth + 1) for argument in node.args]
+            result = _MATH_FUNCTIONS[node.func.id](*arguments)
+            if isinstance(result, int) and result.bit_length() > 4096:
+                raise ValueError("Integer result is too large.")
+            return result
+        raise ValueError("Expression contains an unsupported operation.")
+
+    return evaluate(tree.body)

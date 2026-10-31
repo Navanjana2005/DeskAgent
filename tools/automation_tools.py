@@ -282,7 +282,7 @@ def cancel_all_timers_and_alarms() -> str:
 # NEW TOOLS — Keyboard & Mouse Automation
 # ─────────────────────────────────────────────────────────────────────────────
 
-@tool
+@tool("desktop_type_text")
 def type_text(text: str, interval: float = 0.03) -> str:
     """Simulates keyboard typing of the given text.
 
@@ -337,7 +337,7 @@ def click_at_position(x: int, y: int, button: str = "left", clicks: int = 1) -> 
         return f"❌ Error clicking: {e}"
 
 
-@tool
+@tool("desktop_scroll_page")
 def scroll_page(direction: str, amount: int = 3) -> str:
     """Scrolls the page up or down.
 

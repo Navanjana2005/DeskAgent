@@ -143,7 +143,12 @@ def _find_message_box(window, message_name):
 
 @tool
 @with_com_init
-def send_message_to_contact(app_name: str, contact_name: str, message: str) -> str:
+def send_message_to_contact(
+    app_name: str,
+    contact_name: str,
+    message: str,
+    confirmed_by_user: bool = False,
+) -> str:
     """Opens an installed messaging app, searches for a contact, selects
     their chat, and sends them a text message. Handles the full sequence
     internally: open app -> click search bar -> type contact name -> wait
@@ -154,7 +159,15 @@ def send_message_to_contact(app_name: str, contact_name: str, message: str) -> s
         app_name: Which app to use. Supported: "whatsapp", "telegram", "messenger".
         contact_name: Name of the contact/chat to message, e.g. "Jhon".
         message: The text message to send.
+        confirmed_by_user: Set True only after the user explicitly confirms
+            sending this exact message to this exact contact.
     """
+    if not confirmed_by_user:
+        return (
+            f"⛔ Not sent. Confirm sending this exact message to "
+            f"'{contact_name}' via {app_name}, then retry with "
+            "confirmed_by_user=True."
+        )
     if not HAS_UIAUTOMATION:
         return "❌ uiautomation not installed. Run: pip install uiautomation"
     if not HAS_APPOPENER:

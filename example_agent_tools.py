@@ -1,4 +1,4 @@
-import os 
+import os
 import subprocess
 import psutil
 from langchain_core.tools import tool
@@ -7,7 +7,6 @@ from AppOpener import open as launch_app, close as terminate_app
 import datetime 
 import time
 import ctypes
-from firecrawl import Firecrawl
 import shutil
 import requests
 import pyautogui
@@ -16,6 +15,11 @@ import json
 import threading
 import numpy as np
 from typing import Optional
+
+try:
+    from firecrawl import Firecrawl
+except ImportError:
+    Firecrawl = None
 
 
 try:
@@ -61,13 +65,21 @@ try:
 except ImportError:
     HAS_PYGAME = False
 
-# FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
-# if not FIRECRAWL_API_KEY:
-#     raise RuntimeError("FIRECRAWL_API_KEY is not set in the environment.")
-
-firecrawl = Firecrawl(api_key="fc-30980427294c436780644a831b254162")
+FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
+HAS_FIRECRAWL = Firecrawl is not None and bool(FIRECRAWL_API_KEY)
+firecrawl = Firecrawl(api_key=FIRECRAWL_API_KEY) if HAS_FIRECRAWL else None
 
 MAX_CHARS_PER_PAGE = 3000
+
+
+def _dangerous_tool_blocked(action: str) -> str | None:
+    if os.getenv("ALLOW_DANGEROUS_TOOLS", "0") == "1":
+        return None
+    return (
+        f"⛔ {action} is disabled. Set ALLOW_DANGEROUS_TOOLS=1 "
+        "in your environment to enable it."
+    )
+
 
 @tool
 def app_opener(app_name: str) -> str:
@@ -145,6 +157,9 @@ def delete_file(file_path: str) -> str:
     Args:
         file_path (str): The path to the file to delete.
     """
+    blocked = _dangerous_tool_blocked("File deletion")
+    if blocked:
+        return blocked
     try:
         os.remove(file_path)
         print(f"Deleted {file_path}.")
@@ -752,6 +767,9 @@ def shutdown_computer() -> str:
     Shuts down the computer.
     """
 
+    blocked = _dangerous_tool_blocked("Shutdown")
+    if blocked:
+        return blocked
     try:
         if os.name == 'nt':  # Windows
             subprocess.run(['shutdown', '/s', '/t', '0'], check=True)
@@ -769,6 +787,9 @@ def restart_computer() -> str:
     Restarts the computer.
     """
 
+    blocked = _dangerous_tool_blocked("Restart")
+    if blocked:
+        return blocked
     try:
         if os.name == 'nt':  # Windows
             subprocess.run(['shutdown', '/r', '/t', '0'], check=True)
@@ -786,6 +807,9 @@ def sleep_computer() -> str:
     Puts the computer to sleep.
     """
 
+    blocked = _dangerous_tool_blocked("Sleep")
+    if blocked:
+        return blocked
     try:
         if os.name == 'nt':  # Windows
             subprocess.run(['rundll32.exe', 'powrprof.dll,SetSuspendState', '0,1,0'], check=True)
@@ -802,6 +826,9 @@ def hibernate_computer() -> str:
     Hibernates the computer.
     """
 
+    blocked = _dangerous_tool_blocked("Hibernation")
+    if blocked:
+        return blocked
     try:
         if os.name == 'nt':  # Windows
             subprocess.run(['shutdown', '/h'], check=True)
@@ -863,6 +890,9 @@ def deep_web_research(query: str, num_sources: int = 3) -> str:
         query (str): The search query.
         num_sources (int): Number of top results to search and scrape (default 3, max 5).
     """
+    if not HAS_FIRECRAWL:
+        return "❌ Firecrawl is unavailable. Install firecrawl-py and set FIRECRAWL_API_KEY."
+
     num_sources = min(num_sources, 5)
 
     try:
@@ -909,7 +939,9 @@ def get_weather(city: str) -> str:
     Args:
         city (str): The name of the city to fetch weather for.
     """
-    API_KEY = "b5806da5bae7e67896d80cef07390733"
+    API_KEY = os.getenv("OPENWEATHER_API_KEY")
+    if not API_KEY:
+        return "❌ OPENWEATHER_API_KEY is not set in the environment."
     BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
     params = {
@@ -993,6 +1025,9 @@ def set_clipboard(text: str) -> str:
 @tool
 def kill_process(pid: int) -> str:
     """Terminates a process by its PID."""
+    blocked = _dangerous_tool_blocked("Process termination")
+    if blocked:
+        return blocked
     try:
         p = psutil.Process(pid)
         p.terminate()
@@ -1626,6 +1661,9 @@ def run_commnds_in_terminal(command: str) -> str:
     Args:
         command: The command to execute.
     """
+    blocked = _dangerous_tool_blocked("Terminal command execution")
+    if blocked:
+        return blocked
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
